@@ -51,6 +51,7 @@ bool opt_server = false;
 bool opt_daemon = false;
 bool opt_nodaemon = false;
 bool opt_dump_dgraph = false;
+string opt_host = "localhost";
 
 // Program options stuff
 
@@ -311,9 +312,9 @@ bool handle_server_read(sSession & session) {
 	return true;
 }
 
-bool client(istream & is, ostream & os, unsigned int port) {
+bool client(string host, istream & is, ostream & os, unsigned int port) {
 	// connect to ukb port and send data to it.
-	sClient client("localhost", port);
+    sClient client(host, port);
 	string server_cmd;
 	string go("go");
 	if (client.error()) {
@@ -505,6 +506,7 @@ int main(int argc, char *argv[]) {
         ("nodaemon", "Start server in foreground listening to port. Assumes --port")
 		("port", value<unsigned int>(), "Port to listen/send information.")
 		("client", "Use client mode to send contexts to the ukb daemon. Bare in mind that the configuration is that of the server.")
+        ("host", value<string>(), "Host of the server.")
 		("shutdown", "Shutdown ukb daemon.")
 		;
 
@@ -764,7 +766,7 @@ int main(int argc, char *argv[]) {
 
 		if (vm.count("port")) {
 #ifdef UKB_SERVER
-			port = vm["port"].as<unsigned int>();;
+            port = vm["port"].as<unsigned int>();
 #else
 		cerr << "[E] server not available (compile ukb without -DUKB_SERVER switch)\n";
 		exit(1);
@@ -779,6 +781,15 @@ int main(int argc, char *argv[]) {
 			exit(1);
 #endif
 		}
+
+        if (vm.count("host")) {
+#ifdef UKB_SERVER
+            opt_host = vm["host"].as<string>();
+#else
+            cerr << "[E] server not available (compile ukb without -DUKB_SERVER switch)\n";
+            exit(1);
+#endif
+        }
 
 		if (vm.count("shutdown")) {
 #ifdef UKB_SERVER
@@ -884,7 +895,7 @@ int main(int argc, char *argv[]) {
 		// TODO :
 		// - check parameters
 		// - cmdline
-		return !client(std::cin, std::cout, port);
+        return !client(opt_host, std::cin, std::cout, port);
 #endif
 	}
 
