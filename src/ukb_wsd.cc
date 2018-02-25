@@ -47,7 +47,9 @@ dgraph_rank dgraph_rank_method = r_ppr;
 
 main_method opt_dmethod = m_ppr_w2w;
 string cmdline;
+bool opt_server = false;
 bool opt_daemon = false;
+bool opt_nodaemon = false;
 bool opt_dump_dgraph = false;
 
 // Program options stuff
@@ -500,6 +502,7 @@ int main(int argc, char *argv[]) {
 	options_description po_desc_server("Client/Server options");
 	po_desc_server.add_options()
 		("daemon", "Start a daemon listening to port. Assumes --port")
+        ("nodaemon", "Start server in foreground listening to port. Assumes --port")
 		("port", value<unsigned int>(), "Port to listen/send information.")
 		("client", "Use client mode to send contexts to the ukb daemon. Bare in mind that the configuration is that of the server.")
 		("shutdown", "Shutdown ukb daemon.")
@@ -743,12 +746,21 @@ int main(int argc, char *argv[]) {
 
 		if (vm.count("daemon")) {
 #ifdef UKB_SERVER
-			opt_daemon = true;
+            opt_server = opt_daemon = true;
 #else
-		cerr << "[E] server not available (compile ukb without -DUKB_SERVER switch)\n";
-		exit(1);
+            cerr << "[E] server not available (compile ukb without -DUKB_SERVER switch)\n";
+            exit(1);
 #endif
 		}
+
+        if (vm.count("nodaemon")) {
+#ifdef UKB_SERVER
+            opt_server = opt_nodaemon = true;
+#else
+            cerr << "[E] server not available (compile ukb without -DUKB_SERVER switch)\n";
+            exit(1);
+#endif
+        }
 
 		if (vm.count("port")) {
 #ifdef UKB_SERVER
@@ -782,6 +794,11 @@ int main(int argc, char *argv[]) {
 		exit(-1);
 	}
 
+    if (opt_daemon && opt_nodaemon) {
+        cerr << "Error: --dameon and --nodaemon are mutually exclusive" << endl;
+        exit(-1);
+    }
+
 	if(opt_shutdown) {
 #ifdef UKB_SERVER
 		if (client_stop_server(port)) {
@@ -795,7 +812,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// if not daemon, check input files (do it early before loading KB and dictionary)
-	if (!fullname_in.size() and !opt_daemon) {
+    if (!fullname_in.size() and !opt_server) {
 		cout << po_visible << endl;
 		cout << "Error: No input" << endl;
 		exit(-1);
@@ -804,7 +821,7 @@ int main(int argc, char *argv[]) {
 	if (check_convergence) set_pr_convergence(iterations, thresh);
 
 	// if --daemon, fork server process (has to be done before loading KB and dictionary)
-	if (opt_daemon) {
+    if (opt_server) {
 #ifdef UKB_SERVER
 		try {
 			// Get absolute names of KB and dict
@@ -822,7 +839,14 @@ int main(int argc, char *argv[]) {
 		// accept malformed contexts, as we don't want the daemon to die.
 		glVars::input::swallow = true;
 		cout << "Starting UKB WSD daemon on port " << lexical_cast<string>(port) << " ... \n";
-		return start_daemon(port, &load_kb_and_dict, &handle_server_read);
+        if (opt_daemon) {
+            return start_daemon(port, &load_kb_and_dict, &handle_server_read);
+        } else if (opt_nodaemon) {
+            return start_no_daemon(port, &load_kb_and_dict, &handle_server_read);
+        } else {
+            cerr << "Error: --dameon or --nodaemon are not set yet server mode is enabled" << endl;
+            exit(-1);
+        }
 #endif
 	}
 
