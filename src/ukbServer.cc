@@ -6,10 +6,13 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <boost/asio/signal_set.hpp>
+#include <boost/thread/thread.hpp>
+#include <boost/shared_ptr.hpp>
+#include <vector>
 
 namespace ukb {
 
-int start_no_daemon(unsigned int port, void (*load_kb_dict)(bool), bool (*func)(sSession &)) {
+int start_no_daemon(unsigned int port, void (*load_kb_dict)(bool), bool (*func)(sSession &), int concurrency) {
 
   boost::asio::io_service io_service;
   sServer *server;
@@ -23,7 +26,22 @@ int start_no_daemon(unsigned int port, void (*load_kb_dict)(bool), bool (*func)(
   umask(0);
 
   (*load_kb_dict)(true); // 'true' because we call it from the daemon
-  io_service.run();
+
+
+  // Create a pool of threads to run all of the io_services.
+  std::vector<boost::shared_ptr<boost::thread> > threads;
+  for (int i = 0; i < (concurrency-1); ++i)
+  {
+    boost::shared_ptr<boost::thread> thread(new boost::thread(
+          boost::bind(&boost::asio::io_service::run, &io_service)));
+    threads.push_back(thread);
+  }
+
+  io_service.run(); // Use main thread as worker
+
+  // Wait for all threads in the pool to exit.
+  for (std::size_t i = 0; i < threads.size(); ++i)
+    threads[i]->join();
 
   delete server;
   return 0;
@@ -31,7 +49,7 @@ int start_no_daemon(unsigned int port, void (*load_kb_dict)(bool), bool (*func)(
 
 
 
-  int start_daemon(unsigned int port, void (*load_kb_dict)(bool), bool (*func)(sSession &)) {
+  int start_daemon(unsigned int port, void (*load_kb_dict)(bool), bool (*func)(sSession &), int concurrency) {
 
 	// Code "borrowed" from asio daemon example (boost license).
 
@@ -187,7 +205,26 @@ int start_no_daemon(unsigned int port, void (*load_kb_dict)(bool), bool (*func)(
 	  }
 	  syslog(LOG_INFO | LOG_USER, "UKB daemon started");
 	  close(fd[1]); // close up also the ouput pipe
-	  io_service.run();
+
+
+      // Create a pool of threads to run all of the io_services.
+      std::vector<boost::shared_ptr<boost::thread> > threads;
+      for (int i = 0; i < (concurrency-1); ++i)
+      {
+        boost::shared_ptr<boost::thread> thread(new boost::thread(
+              boost::bind(&boost::asio::io_service::run, &io_service)));
+        threads.push_back(thread);
+      }
+
+      io_service.run(); // Use main thread as worker
+
+      // Wait for all threads in the pool to exit.
+      for (std::size_t i = 0; i < threads.size(); ++i)
+        threads[i]->join();
+
+
+
+
 	  syslog(LOG_INFO | LOG_USER, "UKB daemon stopped");
 	} catch (std::exception& e) {
 	  syslog(LOG_ERR | LOG_USER, "[E] daemon: %s", e.what());

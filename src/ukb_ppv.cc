@@ -740,7 +740,7 @@ int main(int argc, char *argv[]) {
 		// accept malformed contexts, as we don't want the daemon to die.
 		glVars::input::swallow = true;
 		cout << "Starting UKB PPV daemon on port " << lexical_cast<string>(port) << " ... ";
-		return start_daemon(port, &load_kb_and_dict, &handle_server_read);
+        return start_daemon(port, &load_kb_and_dict, &handle_server_read, 1);
 #endif
 	}
 

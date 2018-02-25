@@ -51,6 +51,7 @@ bool opt_server = false;
 bool opt_daemon = false;
 bool opt_nodaemon = false;
 bool opt_dump_dgraph = false;
+int opt_concurrency = 1;
 string opt_host = "localhost";
 
 // Program options stuff
@@ -508,6 +509,7 @@ int main(int argc, char *argv[]) {
 		("client", "Use client mode to send contexts to the ukb daemon. Bare in mind that the configuration is that of the server.")
         ("host", value<string>(), "Host of the server.")
 		("shutdown", "Shutdown ukb daemon.")
+        ("concurrency", value<int>(), "Number of server threads")
 		;
 
 	options_description po_visible(desc_header);
@@ -764,6 +766,19 @@ int main(int argc, char *argv[]) {
 #endif
         }
 
+        if (vm.count("concurrency")) {
+#ifdef UKB_SERVER
+            opt_concurrency = vm["concurrency"].as<int>();
+            if (opt_concurrency < 1) {
+                cerr << "--concurrency must be greater than 1\n";
+                exit(1);
+            }
+#else
+            cerr << "[E] server not available (compile ukb without -DUKB_SERVER switch)\n";
+            exit(1);
+#endif
+        }
+
 		if (vm.count("port")) {
 #ifdef UKB_SERVER
             port = vm["port"].as<unsigned int>();
@@ -851,9 +866,9 @@ int main(int argc, char *argv[]) {
 		glVars::input::swallow = true;
 		cout << "Starting UKB WSD daemon on port " << lexical_cast<string>(port) << " ... \n";
         if (opt_daemon) {
-            return start_daemon(port, &load_kb_and_dict, &handle_server_read);
+            return start_daemon(port, &load_kb_and_dict, &handle_server_read, opt_concurrency);
         } else if (opt_nodaemon) {
-            return start_no_daemon(port, &load_kb_and_dict, &handle_server_read);
+            return start_no_daemon(port, &load_kb_and_dict, &handle_server_read, opt_concurrency);
         } else {
             cerr << "Error: --dameon or --nodaemon are not set yet server mode is enabled" << endl;
             exit(-1);
@@ -894,7 +909,7 @@ int main(int argc, char *argv[]) {
 #ifdef UKB_SERVER
 		// TODO :
 		// - check parameters
-		// - cmdline
+        // - cmdline
         return !client(opt_host, std::cin, std::cout, port);
 #endif
 	}

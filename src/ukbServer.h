@@ -16,8 +16,8 @@ namespace ukb {
 
   class sSession;
 
-  int start_no_daemon(unsigned int port, void (*pre)(bool), bool (*func)(sSession &));
-  int start_daemon(unsigned int port, void (*pre)(bool), bool (*func)(sSession &));
+  int start_no_daemon(unsigned int port, void (*pre)(bool), bool (*func)(sSession &), int concurrency);
+  int start_daemon(unsigned int port, void (*pre)(bool), bool (*func)(sSession &), int concurrency);
 
   namespace protocol {
 	// Protocol is as follows:
