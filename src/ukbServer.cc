@@ -9,6 +9,28 @@
 
 namespace ukb {
 
+int start_no_daemon(unsigned int port, void (*load_kb_dict)(bool), bool (*func)(sSession &)) {
+
+  boost::asio::io_service io_service;
+  sServer *server;
+  try {
+    server = new sServer(io_service, port, func);
+  } catch (std::exception& e) {
+    std::cerr << "[E] can not start daemon: " << e.what() << std::endl;
+    exit(1);
+  }
+
+  umask(0);
+
+  (*load_kb_dict)(true); // 'true' because we call it from the daemon
+  io_service.run();
+
+  delete server;
+  return 0;
+}
+
+
+
   int start_daemon(unsigned int port, void (*load_kb_dict)(bool), bool (*func)(sSession &)) {
 
 	// Code "borrowed" from asio daemon example (boost license).
@@ -181,7 +203,9 @@ namespace ukb {
 	: m_func(func),
 	  m_socket(io),
 	  m_reader(m_socket),
-	  m_writer(m_socket) {
+      m_writer(m_socket)
+  {
+
   }
 
   boost::asio::ip::tcp::tcp::socket & sSession::socket() {
@@ -191,6 +215,8 @@ namespace ukb {
   bool sSession::start() {
 	// Start synchronous operations
 	// By now, just call m_func
+    boost::asio::ip::tcp::no_delay option(true);
+    m_socket.set_option(option);
 	return (*m_func)(*this);
   }
 
@@ -241,7 +267,8 @@ namespace ukb {
 	m_query(host, boost::lexical_cast<std::string>(port)), //ask the dns for this resolver
 	m_socket(m_io),
 	m_reader(m_socket),
-	m_writer(m_socket) {
+    m_writer(m_socket)
+  {
 
 	boost::asio::ip::tcp::tcp::resolver::iterator end;
 
@@ -250,7 +277,11 @@ namespace ukb {
 	while (m_endpoint_iterator != end) {
 	  m_socket.close();
 	  m_socket.connect(*m_endpoint_iterator, m_error);
-	  if (!m_error) break;
+      if (!m_error) {
+          boost::asio::ip::tcp::no_delay option(true);
+          m_socket.set_option(option);
+          break;
+      }
 	  m_endpoint_iterator++;
 	}
   }
