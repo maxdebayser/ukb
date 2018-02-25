@@ -250,7 +250,11 @@ int start_no_daemon(unsigned int port, void (*load_kb_dict)(bool), bool (*func)(
 							  const boost::system::error_code& error) {
 	bool status = true;
 	if (!error) {
-	  status = new_session->start(); // false means finish
+      try {
+        status = new_session->start(); // false means finish
+      } catch (const std::runtime_error& e) {
+        std::cerr << "Runtime error: " << e.what() << std::endl;
+      }
 	}
 	delete new_session;
 	if (!status)
