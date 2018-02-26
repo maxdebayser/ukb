@@ -67,6 +67,13 @@ AC_CHECK_FILE($BOOST_INCLUDE_DIR/boost/random.hpp, ,
               echo "$BOOST_INCLUDE_DIR/boost/random.hpp not found";
               echo "Please specify a suitable BOOST include directory: --with-boost-include=DIR"; exit 1)
 
+dnl check boost filesystem include
+AC_CHECK_FILE($BOOST_INCLUDE_DIR/boost/thread/thread.hpp, ,
+              echo "BOOST include directory does not contain the Thread Library !";
+	          echo "$BOOST_INCLUDE_DIR/boost/thread/thread.hpp not found";
+              echo "Please specify a suitable BOOST include directory: --with-boost-include=DIR"; exit 1)
+
+
 AC_SUBST(BOOST_INCLUDE_DIR)
 
 dnl BOOST program options library
@@ -89,6 +96,12 @@ AC_CHECK_LIB(boost_random,
 	     main,
 	     [LDFLAGS="${LDFLAGS} -lboost_random"],
 	     echo "libboost_random not found. Please add BOOST library directory to your LD_LIBRARY_PATH or specify a suitable BOOST library directory: --with-boost-lib=DIR"; exit 1)
+
+AC_CHECK_LIB(boost_thread,
+	     main,
+	     [LDFLAGS="${LDFLAGS} -lboost_thread"],
+	     echo "libboost_thread not found. Please add BOOST library directory to your LD_LIBRARY_PATH or specify a suitable BOOST library directory: --with-boost-lib=DIR"; exit 1)
+
 
 AC_SUBST(BOOST_LIB_DIR)
 
